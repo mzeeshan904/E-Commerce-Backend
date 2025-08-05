@@ -8,6 +8,7 @@ A comprehensive e-commerce backend API built with NestJS, Prisma, and PostgreSQL
 
 ## 🚀 Features
 
+### Core E-commerce Features
 - **Complete E-commerce Domain**: Users, Products, Orders, Payments, Inventory
 - **Advanced Product Management**: Variants, attributes, categories, brands
 - **Order Processing**: Full order lifecycle with status tracking
@@ -18,6 +19,15 @@ A comprehensive e-commerce backend API built with NestJS, Prisma, and PostgreSQL
 - **GDPR Compliance**: User consent management
 - **Subscription Management**: Recurring billing support
 - **Return & Refund System**: Complete return processing
+
+### Enterprise Features
+- **Marketplace Support**: Multi-vendor platform with commission tracking
+- **B2B E-commerce**: Company accounts, contracts, quotations
+- **Advanced Inventory**: Multi-warehouse management
+- **Digital Products**: Software, licenses, downloads with DRM
+- **Advanced Promotions**: Rule-based promotion engine
+- **Vendor Management**: KYC verification, payouts, documents
+- **Advanced Shipping**: Rule-based shipping calculations
 
 ## 🛠 Technology Stack
 
@@ -139,16 +149,26 @@ scripts/
 
 ## 📊 Database Schema
 
-The application includes a comprehensive e-commerce database schema with:
+The application includes a comprehensive e-commerce database schema with **60+ models** covering:
 
-- **User Management**: Users, addresses, social accounts
-- **Product Catalog**: Products, variants, categories, brands
-- **Inventory**: Stock tracking, movements, alerts
-- **Orders**: Order processing, items, status history
-- **Payments**: Payment processing, refunds
-- **Reviews**: Product reviews and ratings
-- **Analytics**: Purchase analytics, page views
+#### Core E-commerce
+- **User Management**: Users, addresses, social accounts, company users
+- **Product Catalog**: Products, variants, categories, brands, digital products
+- **Inventory**: Stock tracking, movements, alerts, multi-warehouse support
+- **Orders**: Order processing, items, status history, quotations
+- **Payments**: Payment processing, refunds, vendor payouts
+- **Reviews**: Product reviews and ratings with moderation
+- **Analytics**: Purchase analytics, page views, user behavior tracking
 - **Audit**: Complete audit trail for all operations
+
+#### Enterprise Features
+- **Marketplace**: Vendors, verification, commission tracking, payouts
+- **B2B Commerce**: Companies, contracts, bulk pricing, quotations
+- **Advanced Inventory**: Multi-warehouse, location-based stock management
+- **Digital Products**: License management, download tracking, DRM
+- **Promotions**: Advanced rule-based promotion engine with stacking
+- **Shipping**: Rule-based shipping calculations and optimization
+- **Support**: Ticketing system with priorities and escalation
 
 ## 🧪 Testing
 
@@ -175,6 +195,24 @@ Once the application is running, visit http://localhost:3000/api to explore the 
 - `GET /` - Health check
 - `GET /db-status` - Database connection status
 - `GET /api` - API documentation
+
+## 📚 Documentation
+
+### Quick Access
+- **[🚀 Quick Start Guide](QUICK_START_GUIDE.md)**: Get up and running in 5 minutes
+- **[📋 Development Roadmap](DEVELOPMENT_ROADMAP.md)**: Complete project development guide
+- **[📊 Sprint Template](SPRINT_TEMPLATE.md)**: Sprint planning and tracking template
+
+### API & Technical Docs
+- **API Documentation**: Available at `http://localhost:3000/api` when running
+- **Database Schema**: Comprehensive e-commerce schema with 60+ models
+- **Environment Setup**: See `.env.development` for configuration
+
+### Development Resources
+- **Sprint Planning**: 10 detailed sprints with timelines and tasks
+- **Technology Stack**: Advanced tools for API development, testing, and deployment
+- **Testing Strategy**: Comprehensive testing approach with 90%+ coverage
+- **Deployment Guide**: Production-ready deployment with monitoring
 
 ## 🚀 Deployment
 
