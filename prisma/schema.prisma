@@ -25,47 +25,54 @@ datasource db {
 
 // ============= USER MANAGEMENT =============
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  username          String?   @unique
-  password          String
-  passwordSalt      String?
-  passwordUpdatedAt DateTime?
-  firstName         String?
-  lastName          String?
-  phone             String?
-  dateOfBirth       DateTime?
-  gender            Gender?
-  avatar            String?
-  emailVerified     Boolean   @default(false)
-  phoneVerified     Boolean   @default(false)
-  isActive          Boolean   @default(true)
-  role              UserRole  @default(CUSTOMER)
-  loginProvider     String    @default("email")
-  lastLoginAt       DateTime?
-  deletedAt         DateTime? // Soft delete
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  createdBy         String? // Audit field
-  updatedBy         String? // Audit field
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  username            String?   @unique
+  password            String
+  passwordSalt        String?
+  passwordUpdatedAt   DateTime?
+  firstName           String?
+  lastName            String?
+  phone               String?
+  dateOfBirth         DateTime?
+  gender              Gender?
+  avatar              String?
+  emailVerified       Boolean   @default(false)
+  phoneVerified       Boolean   @default(false)
+  isActive            Boolean   @default(true)
+  role                UserRole  @default(CUSTOMER)
+  loginProvider       String    @default("email")
+  lastLoginAt         DateTime?
+  deletedAt           DateTime? // Soft delete
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  createdBy           String? // Audit field
+  updatedBy           String? // Audit field
+  twoFactorEnabled    Boolean   @default(false)
+  twoFactorSecret     String?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  preferredLanguage   String    @default("en")
+  preferredCurrency   String    @default("USD")
+  timezone            String?
 
   // Relations
-  addresses         Address[]
-  orders            Order[]
-  carts             Cart[]
-  reviews           Review[]
-  wishlistItems     WishlistItem[]
-  notifications     Notification[]
-  loyaltyPoints     LoyaltyPoint[]
-  supportTickets    SupportTicket[]
-  socialAccounts    SocialAccount[]
-  passwordResets    PasswordReset[]
-  gdprConsents      GdprConsent[]
-  subscriptions     Subscription[]
-  auditLogs         AuditLog[]
-  searchQueries     SearchQuery[]
-  companyUsers      CompanyUser[]
-  digitalDownloads  DigitalDownload[]
+  addresses        Address[]
+  orders           Order[]
+  carts            Cart[]
+  reviews          Review[]
+  wishlistItems    WishlistItem[]
+  notifications    Notification[]
+  loyaltyPoints    LoyaltyPoint[]
+  supportTickets   SupportTicket[]
+  socialAccounts   SocialAccount[]
+  passwordResets   PasswordReset[]
+  gdprConsents     GdprConsent[]
+  subscriptions    Subscription[]
+  auditLogs        AuditLog[]
+  searchQueries    SearchQuery[]
+  companyUsers     CompanyUser[]
+  digitalDownloads DigitalDownload[]
 
   // Audit relations
   createdCategories Category[] @relation("CategoryCreatedBy")
@@ -118,23 +125,28 @@ model PasswordReset {
 }
 
 model Address {
-  id           String      @id @default(cuid())
-  userId       String
-  type         AddressType @default(HOME)
-  firstName    String
-  lastName     String
-  company      String?
-  addressLine1 String
-  addressLine2 String?
-  city         String
-  state        String
-  postalCode   String
-  country      String
-  phone        String?
-  isDefault    Boolean     @default(false)
-  deletedAt    DateTime? // Soft delete
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id               String      @id @default(cuid())
+  userId           String
+  type             AddressType @default(HOME)
+  firstName        String
+  lastName         String
+  company          String?
+  addressLine1     String
+  addressLine2     String?
+  city             String
+  state            String
+  postalCode       String
+  country          String
+  phone            String?
+  isDefault        Boolean     @default(false)
+  deletedAt        DateTime? // Soft delete
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  isValidated      Boolean     @default(false)
+  validatedAt      DateTime?
+  latitude         Decimal?    @db.Decimal(10, 8)
+  longitude        Decimal?    @db.Decimal(11, 8)
+  formattedAddress String? // Standardized address
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders    Order[]
@@ -148,12 +160,13 @@ model Address {
 
 // ============= ENHANCED CATEGORY MANAGEMENT =============
 model Category {
-  id          String  @id @default(cuid())
-  name        String // Max 100 chars (app-level validation)
-  slug        String  @unique // Max 100 chars, URL-safe
-  description String? @db.Text
-  image       String?
-  parentId    String?
+  id           String  @id @default(cuid())
+  name         String // Max 100 chars (app-level validation)
+  slug         String  @unique // Max 100 chars, URL-safe
+  description  String? @db.Text
+  image        String?
+  parentId     String?
+  productCount Int     @default(0) // Updated via trigger or cron
 
   // Self-referential relationship for nested categories
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
@@ -262,6 +275,14 @@ model Product {
   updatedAt        DateTime          @updatedAt
   createdBy        String?
   updatedBy        String?
+  publishedAt      DateTime? // Scheduling
+  unpublishedAt    DateTime? // Auto-unpublish
+  viewCount        Int               @default(0)
+  salesCount       Int               @default(0)
+  averageRating    Decimal?          @db.Decimal(3, 2) // Denormalized for performance
+  reviewCount      Int               @default(0)
+  minOrderQuantity Int               @default(1)
+  maxOrderQuantity Int?
 
   category           Category                @relation(fields: [categoryId], references: [id])
   brand              Brand?                  @relation(fields: [brandId], references: [id])
@@ -285,11 +306,15 @@ model Product {
   warehouseInventory WarehouseInventory[]
   quotationItems     QuotationItem[]
   digitalProduct     DigitalProduct?
+  statistics         ProductStatistics?
+  flashSaleItems     FlashSaleItem[]
 
   // Audit relations
   creator User? @relation("ProductCreatedBy", fields: [createdBy], references: [id])
   updater User? @relation("ProductUpdatedBy", fields: [updatedBy], references: [id])
 
+  @@index([categoryId, brandId, status, featured]) // Multi-filter queries
+  @@index([price, status, visibility]) // Price range + filtering
   @@index([price])
   @@index([categoryId])
   @@index([brandId])
@@ -329,7 +354,7 @@ model ProductVariant {
   createdBy    String?
   updatedBy    String?
 
-  product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product            Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
   attributes         VariantAttribute[]
   cartItems          CartItem[]
   orderItems         OrderItem[]
@@ -339,6 +364,7 @@ model ProductVariant {
   bundleProducts     BundleProduct[]
   warehouseInventory WarehouseInventory[]
   quotationItems     QuotationItem[]
+  flashSaleItems     FlashSaleItem[]
 
   @@index([productId])
   @@index([sku])
@@ -545,6 +571,8 @@ model Cart {
   expiresAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  itemCount   Int       @default(0)
+  totalAmount Decimal   @default(0) @db.Decimal(10, 2)
 
   user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   currencyRef   Currency       @relation(fields: [currency], references: [code])
@@ -651,6 +679,8 @@ model Order {
   returns           Return[]
   purchaseAnalytics PurchaseAnalytics?
 
+  @@index([userId, paymentStatus, shippingStatus]) // Dashboard queries
+  @@index([currency, createdAt]) // Revenue reporting
   @@index([userId])
   @@index([status])
   @@index([createdAt])
@@ -659,6 +689,8 @@ model Order {
   @@index([paymentStatus])
   @@index([shippingStatus])
   @@index([status, createdAt])
+  // @@index([status], where: { deletedAt: null })
+  // @@index([userId, createdAt], where: { status: COMPLETED })
   @@map("orders")
 }
 
@@ -680,6 +712,7 @@ model OrderItem {
   variant     ProductVariant? @relation(fields: [variantId], references: [id])
   returnItems ReturnItem[]
 
+  @@index([orderId, productId]) // Order analysis
   @@index([orderId])
   @@index([productId])
   @@index([productId, createdAt])
@@ -841,12 +874,13 @@ model Refund {
 
 // ============= SHIPPING MANAGEMENT =============
 model ShippingZone {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   countries String[]
   states    String[]
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
 
   shippingRates ShippingRate[]
 
@@ -855,14 +889,15 @@ model ShippingZone {
 }
 
 model ShippingMethod {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String
   description   String?
-  price         Decimal  @db.Decimal(10, 2)
+  price         Decimal   @db.Decimal(10, 2)
   estimatedDays Int?
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
   shipments     Shipment[]
   shippingRates ShippingRate[]
@@ -1106,6 +1141,7 @@ model Review {
   replies ReviewReply[]
 
   @@unique([userId, productId])
+  @@index([productId, status, createdAt]) // Recent approved reviews
   @@index([productId, rating])
   @@index([rating])
   @@index([isVerified])
@@ -1185,15 +1221,16 @@ model SearchQuery {
 
 // ============= TAX CONFIGURATION =============
 model TaxRate {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
-  rate      Decimal  @db.Decimal(5, 4)
+  rate      Decimal   @db.Decimal(5, 4)
   country   String
   state     String?
   city      String?
   zipCode   String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime? @default(now())
 
   @@index([country, state])
   @@index([isActive])
@@ -1381,6 +1418,206 @@ model GdprConsent {
   @@index([consentType])
   @@index([createdAt])
   @@map("gdpr_consents")
+}
+
+model ProductStatistics {
+  id            String    @id @default(cuid())
+  productId     String    @unique
+  totalViews    Int       @default(0)
+  totalSales    Int       @default(0)
+  totalRevenue  Decimal   @db.Decimal(15, 2)
+  avgRating     Decimal?  @db.Decimal(3, 2)
+  reviewCount   Int       @default(0)
+  wishlistCount Int       @default(0)
+  lastSoldAt    DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([totalSales])
+  @@index([totalRevenue])
+  @@map("product_statistics")
+}
+
+model InventoryReservation {
+  id          String            @id @default(cuid())
+  productId   String
+  variantId   String?
+  quantity    Int
+  status      ReservationStatus @default(PENDING)
+  reservedFor String // cart_id or order_id
+  expiresAt   DateTime
+  releasedAt  DateTime?
+  createdAt   DateTime          @default(now())
+
+  // product Product         @relation(fields: [productId], references: [id])
+  // variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([productId, status])
+  @@index([expiresAt])
+  @@index([reservedFor])
+  @@map("inventory_reservations")
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  RELEASED
+  EXPIRED
+}
+
+model EmailQueue {
+  id           String        @id @default(cuid())
+  to           String
+  cc           String[]
+  bcc          String[]
+  subject      String
+  body         String        @db.Text
+  template     String?
+  templateData Json?
+  priority     EmailPriority @default(NORMAL)
+  status       EmailStatus   @default(PENDING)
+  attempts     Int           @default(0)
+  maxAttempts  Int           @default(3)
+  lastError    String?       @db.Text
+  scheduledFor DateTime?
+  sentAt       DateTime?
+  createdAt    DateTime      @default(now())
+
+  @@index([status, priority, scheduledFor])
+  @@index([createdAt])
+  @@map("email_queue")
+}
+
+model ProductComparison {
+  id         String   @id @default(cuid())
+  userId     String?
+  sessionId  String
+  productIds String[] // Array of product IDs
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("product_comparisons")
+}
+
+model FlashSale {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?  @db.Text
+  startTime    DateTime
+  endTime      DateTime
+  maxQuantity  Int?
+  quantitySold Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  items FlashSaleItem[]
+
+  @@index([startTime, endTime, isActive])
+  @@map("flash_sales")
+}
+
+model FlashSaleItem {
+  id           String  @id @default(cuid())
+  flashSaleId  String
+  productId    String
+  variantId    String?
+  salePrice    Decimal @db.Decimal(10, 2)
+  maxQuantity  Int?
+  quantitySold Int     @default(0)
+
+  flashSale FlashSale       @relation(fields: [flashSaleId], references: [id])
+  product   Product         @relation(fields: [productId], references: [id])
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([flashSaleId, productId, variantId])
+  @@index([flashSaleId])
+  @@map("flash_sale_items")
+}
+
+model PaymentWebhook {
+  id          String    @id @default(cuid())
+  provider    String
+  eventType   String
+  payload     Json
+  signature   String?
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+  error       String?   @db.Text
+  createdAt   DateTime  @default(now())
+
+  @@index([provider, eventType])
+  @@index([processed])
+  @@index([createdAt])
+  @@map("payment_webhooks")
+}
+
+model ProductQuestion {
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String
+  question   String   @db.Text
+  isAnswered Boolean  @default(false)
+  isPublic   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  // product Product         @relation(fields: [productId], references: [id])
+  // user    User            @relation(fields: [userId], references: [id])
+  answers ProductAnswer[]
+
+  @@index([productId, isPublic])
+  @@map("product_questions")
+}
+
+model ProductAnswer {
+  id           String   @id @default(cuid())
+  questionId   String
+  userId       String?
+  answer       String   @db.Text
+  isOfficial   Boolean  @default(false)
+  helpfulCount Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  question ProductQuestion @relation(fields: [questionId], references: [id])
+
+  @@index([questionId])
+  @@map("product_answers")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  refreshToken String?  @unique
+  ipAddress    String
+  userAgent    String
+  deviceId     String?
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  // user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model RateLimit {
+  id           String    @id @default(cuid())
+  identifier   String // IP or User ID
+  endpoint     String
+  count        Int       @default(1)
+  windowStart  DateTime
+  windowEnd    DateTime
+  blockedUntil DateTime?
+
+  @@unique([identifier, endpoint, windowStart])
+  @@index([identifier, windowStart])
+  @@map("rate_limits")
 }
 
 // ============= ENUMS =============
@@ -1656,7 +1893,7 @@ model Vendor {
   taxId              String?      @unique
   businessType       BusinessType @default(INDIVIDUAL)
   verificationStatus VendorStatus @default(PENDING)
-  commissionRate     Decimal      @db.Decimal(5, 2) @default(10.00)
+  commissionRate     Decimal      @default(10.00) @db.Decimal(5, 2)
   isActive           Boolean      @default(true)
   joinedAt           DateTime     @default(now())
   deletedAt          DateTime?
@@ -1693,13 +1930,13 @@ model VendorPayout {
 }
 
 model VendorDocument {
-  id           String      @id @default(cuid())
+  id           String         @id @default(cuid())
   vendorId     String
   documentType DocumentType
   fileName     String
   fileUrl      String
   status       DocumentStatus @default(PENDING)
-  uploadedAt   DateTime    @default(now())
+  uploadedAt   DateTime       @default(now())
   verifiedAt   DateTime?
 
   vendor Vendor @relation(fields: [vendorId], references: [id])
@@ -1710,15 +1947,15 @@ model VendorDocument {
 }
 
 model VendorBankAccount {
-  id            String  @id @default(cuid())
-  vendorId      String  @unique
+  id            String   @id @default(cuid())
+  vendorId      String   @unique
   bankName      String
   accountNumber String
   routingNumber String?
   swiftCode     String?
   iban          String?
   accountType   String?
-  isVerified    Boolean @default(false)
+  isVerified    Boolean  @default(false)
   createdAt     DateTime @default(now())
 
   vendor Vendor @relation(fields: [vendorId], references: [id])
@@ -1740,9 +1977,9 @@ model Company {
   updatedAt     DateTime     @updatedAt
 
   // Relations
-  users       CompanyUser[]
-  contracts   Contract[]
-  quotations  Quotation[]
+  users      CompanyUser[]
+  contracts  Contract[]
+  quotations Quotation[]
 
   @@index([domain])
   @@index([isActive])
@@ -1791,19 +2028,19 @@ model Contract {
 }
 
 model Quotation {
-  id             String          @id @default(cuid())
-  companyId      String
-  quotationNumber String         @unique
-  title          String
-  description    String?         @db.Text
-  totalAmount    Decimal         @db.Decimal(15, 2)
-  currency       String          @default("USD")
-  status         QuotationStatus @default(DRAFT)
-  validUntil     DateTime
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  companyId       String
+  quotationNumber String          @unique
+  title           String
+  description     String?         @db.Text
+  totalAmount     Decimal         @db.Decimal(15, 2)
+  currency        String          @default("USD")
+  status          QuotationStatus @default(DRAFT)
+  validUntil      DateTime
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  company Company           @relation(fields: [companyId], references: [id])
+  company Company         @relation(fields: [companyId], references: [id])
   items   QuotationItem[]
 
   @@index([companyId])
@@ -1812,14 +2049,14 @@ model Quotation {
 }
 
 model QuotationItem {
-  id           String  @id @default(cuid())
-  quotationId  String
-  productId    String
-  variantId    String?
-  quantity     Int
-  unitPrice    Decimal @db.Decimal(10, 2)
-  totalPrice   Decimal @db.Decimal(10, 2)
-  description  String?
+  id          String  @id @default(cuid())
+  quotationId String
+  productId   String
+  variantId   String?
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(10, 2)
+  totalPrice  Decimal @db.Decimal(10, 2)
+  description String?
 
   quotation Quotation       @relation(fields: [quotationId], references: [id])
   product   Product         @relation(fields: [productId], references: [id])
@@ -1831,15 +2068,16 @@ model QuotationItem {
 
 // ============= ADVANCED INVENTORY =============
 model Warehouse {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
-  code      String   @unique
+  code      String    @unique
   address   String
   city      String
   country   String
-  isActive  Boolean  @default(true)
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isActive  Boolean   @default(true)
+  isDefault Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime? @default(now())
 
   // Relations
   inventory WarehouseInventory[]
@@ -1885,6 +2123,7 @@ model PromotionRule {
   expiresAt   DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?     @default(now())
 
   // Relations
   usages PromotionUsage[]
@@ -1896,12 +2135,12 @@ model PromotionRule {
 }
 
 model PromotionUsage {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   promotionId String
   userId      String?
   orderId     String?
   sessionId   String?
-  discount    Decimal @db.Decimal(10, 2)
+  discount    Decimal  @db.Decimal(10, 2)
   usedAt      DateTime @default(now())
 
   promotion PromotionRule @relation(fields: [promotionId], references: [id])
@@ -1922,6 +2161,7 @@ model DigitalProduct {
   licenseKey    String?
   isActive      Boolean     @default(true)
   createdAt     DateTime    @default(now())
+  deletedAt     DateTime?
 
   product   Product           @relation(fields: [productId], references: [id])
   downloads DigitalDownload[]
@@ -2052,4 +2292,19 @@ enum LicenseType {
   MULTI_USER
   ENTERPRISE
   UNLIMITED
+}
+
+enum EmailPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum EmailStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
 }
