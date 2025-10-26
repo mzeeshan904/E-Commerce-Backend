@@ -26,36 +26,34 @@ datasource db {
 
 // ============= USER MANAGEMENT =============
 model User {
-  id                  String    @id @default(cuid())
-  email               String    @unique
-  username            String?   @unique
-  password            String
-  passwordSalt        String?
-  passwordUpdatedAt   DateTime?
-  firstName           String?
-  lastName            String?
-  phone               String?
-  dateOfBirth         DateTime?
-  gender              Gender?
-  avatar              String?
+  id                String    @id @default(cuid())
+  email             String    @unique
+  username          String?   @unique
+  password          String
+  passwordSalt      String?
+  passwordUpdatedAt DateTime?
+
+  // Auth / account status
   emailVerified       Boolean   @default(false)
   phoneVerified       Boolean   @default(false)
   isActive            Boolean   @default(true)
   role                UserRole  @default(CUSTOMER)
   loginProvider       String    @default("email")
   lastLoginAt         DateTime?
-  deletedAt           DateTime? // Soft delete
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  createdBy           String? // Audit field
-  updatedBy           String? // Audit field
   twoFactorEnabled    Boolean   @default(false)
   twoFactorSecret     String?
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
-  preferredLanguage   String    @default("en")
-  preferredCurrency   String    @default("USD")
-  timezone            String?
+
+  // Auditing / lifecycle
+  deletedAt    DateTime? // Soft delete
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdBy    String?
+  updatedBy    String?
+
+  // 1–1 profile
+  profile Profile?
 
   // Relations
   addresses        Address[]
@@ -89,6 +87,27 @@ model User {
   @@index([role])
   @@index([isActive])
   @@map("users")
+}
+model Profile {
+  id        String   @id @default(cuid())
+
+  // FK to users.id (unique → one profile per user)
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Moved person/locale fields
+  firstName         String?
+  lastName          String?
+  phone             String?
+  dateOfBirth       DateTime?
+  gender            Gender?
+  avatar            String?
+  preferredLanguage String   @default("en")
+  preferredCurrency String   @default("USD")
+  timezone          String?
+
+  @@index([userId])
+  @@map("profiles")
 }
 
 model SocialAccount {
