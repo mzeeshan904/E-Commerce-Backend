@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,6 +24,16 @@ async function bootstrap() {
     origin: corsOrigins,
     credentials: true,
   });
+
+    const swaggerConfig = new DocumentBuilder()
+    .setTitle('E-Commerce')
+    .setDescription('E-Commerce API description')
+    .setVersion('1.0')
+    .addTag('E-Commerce')
+    .build();
+  const documentFactory = () => SwaggerModule.createDocument(app, swaggerConfig );
+  SwaggerModule.setup('api', app, documentFactory);
+
 
   await app.listen(port);
   // eslint-disable-next-line no-console
